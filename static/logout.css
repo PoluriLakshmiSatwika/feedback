@@ -1,0 +1,32 @@
+#logout-button {
+    background-color: red;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+  }
+  
+  #logout-button[disabled] {
+    background-color: lightgray;
+    color: gray;
+  }
+  /* Default styling for larger screens */
+body {
+  font-size: 18px;
+  margin: 20px;
+}
+
+/* Styling for screens smaller than 768px (tablets, mobile devices) */
+@media (max-width: 768px) {
+  body {
+      font-size: 16px;
+      margin: 10px;
+  }
+}
+
+/* Styling for very small screens (mobile devices) */
+@media (max-width: 480px) {
+  body {
+      font-size: 14px;
+      margin: 5px;
+  }
+}
