@@ -29,19 +29,19 @@ db=os.environ.get('RDS_DB_NAME')
 password=os.environ.get('RDS_PASSWORD')
 host=os.environ.get('RDS_HOSTNAME')
 port=os.environ.get('RDS_PORT')
-with mysql.connector.connect(host="185.232.14.154",user="u819702430_Admin",password="Root123@.",port="3306",db="u819702430_spm") as conn:
+with mysql.connector.connect(host="Satwika",user="system",password="root",port="3306",db="spm") as conn:
     cursor=conn.cursor(buffered=True)
     #cursor.execute("create table if not exists users(rollno varchar(50) primary key,password varchar(15),email varchar(60))")
     #cursor.execute("CREATE TABLE contact (name varchar(255) NOT NULL,email varchar(255) NOT NULL,message varchar(255) NOT NULL)");
     #cursor.execute("CREATE TABLE sur_data (name VARCHAR(255) NOT NULL,rollno VARCHAR(255) NOT NULL,email VARCHAR(255) NOT NULL,dept VARCHAR(255) NOT NULL,specialization VARCHAR(255) NOT NULL,one VARCHAR(255) NOT NULL,two VARCHAR(255) NOT NULL,three VARCHAR(255) NOT NULL,four VARCHAR(255) NOT NULL,five VARCHAR(255) NOT NULL,six VARCHAR(255) NOT NULL,seven VARCHAR(255) NOT NULL,eight VARCHAR(255) NOT NULL,nine VARCHAR(255) NOT NULL,ten VARCHAR(255) NOT NULL,eleven VARCHAR(255) NOT NULL,twelve VARCHAR(255) NOT NULL,thirteen VARCHAR(255) NOT NULL,fourteen VARCHAR(255) NOT NULL,fifteen VARCHAR(255) NOT NULL,sixteen VARCHAR(255) NOT NULL,seventeen VARCHAR(255) NOT NULL,eighteen VARCHAR(255) NOT NULL,nineteen VARCHAR(255) NOT NULL)");
     cursor.close()
-mydb=mysql.connector.connect(host="185.232.14.154",user="u819702430_Admin",password="Root123@.",db="u819702430_spm")
+mydb=mysql.connector.connect(host="Satwika",user="system",password="root",db="spm")
 serializer = URLSafeTimedSerializer(b'\x011\xd3\xb9\x1a\x97{\xe6\x87\xeb{2\xbe*\xcfI\xde\x02\xe7\x89')
 db_config = {
-    "host": "185.232.14.154",
-    "user": "u819702430_Admin",
-    "password": "Root123@.",
-    "database": "u819702430_spm",
+    "host": "Satwika",
+    "user": "system",
+    "password": "root",
+    "database": "spm",
 }
 
 # Attempt to establish a database connection
@@ -142,10 +142,10 @@ from mysql.connector import pooling, Error
 
 # Database connection pool
 db_config = {
-    "host": "185.232.14.154",
-    "user": "u819702430_Admin",
-    "password": "Root123@.",
-    "database": "u819702430_spm",
+    "host": "Satwika",
+    "user": "system",
+    "password": "root",
+    "database": "spm",
 }
 connection_pool = pooling.MySQLConnectionPool(pool_name="mypool", pool_size=5, **db_config)
 
@@ -291,12 +291,6 @@ def reset(email):
     if request.method == 'POST':
         newpassword = request.form['npassword']
         confirmpassword = request.form['cpassword']
-
-        '''# Debugging information
-        print("Email:", email)
-        print("New Password:", newpassword)
-        print("Confirm Password:", confirmpassword)'''
-
         # Password validation
         if newpassword == confirmpassword:
             try:
@@ -407,10 +401,10 @@ def confirm(token):
         # Check if mydb is None or the connection is not available
         if mydb is None or not mydb.is_connected():
             mydb = mysql.connector.connect(
-                host="185.232.14.154",
-                user="u819702430_Admin",
-                password="Root123@.",
-                database="u819702430_spm"
+                host="Satwika",
+                user="system",
+                password="root",
+                database="spm"
             )
         
         cursor = mydb.cursor(buffered=True)
