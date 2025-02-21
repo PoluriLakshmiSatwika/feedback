@@ -1,4 +1,4 @@
-from flask import Flask,redirect,url_for,request,render_template,flash,session,abort
+from flask import Flask,redirect,url_for,request,render_template,flash,session,Response
 import mysql.connector
 from email.message import EmailMessage
 from key import secret_key,salt
@@ -9,16 +9,15 @@ import os
 import smtplib
 import pandas as pd
 from flask import Flask, render_template
-
-
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import mysql.connector  # Import the MySQL library
 from sotp import *
 from tokenreset import token
 import csv
-from flask import Flask, render_template, Response
-import mysql.connector
 import io
-from itsdangerous import URLSafeTimedSerializer
+import logging
+
 
 # Replace 'your-secret-key' with your actual secret key
 
@@ -30,18 +29,60 @@ db=os.environ.get('RDS_DB_NAME')
 password=os.environ.get('RDS_PASSWORD')
 host=os.environ.get('RDS_HOSTNAME')
 port=os.environ.get('RDS_PORT')
-with mysql.connector.connect(host="Satwika",user="system",password="root",port="3306",db="spm") as conn:
+with mysql.connector.connect(host="185.232.14.154",user="u819702430_Admin",password="Root123@.",port="3306",db="u819702430_spm") as conn:
     cursor=conn.cursor(buffered=True)
-    cursor.execute("create table if not exists users(rollno varchar(50) primary key,password varchar(15),email varchar(60))")
-    cursor.execute("CREATE TABLE contact (name varchar(255) NOT NULL,email varchar(255) NOT NULL,message varchar(255) NOT NULL)");
-    cursor.execute("CREATE TABLE sur_data (name VARCHAR(255) NOT NULL,rollno VARCHAR(255) NOT NULL,email VARCHAR(255) NOT NULL,dept VARCHAR(255) NOT NULL,specialization VARCHAR(255) NOT NULL,one VARCHAR(255) NOT NULL,two VARCHAR(255) NOT NULL,three VARCHAR(255) NOT NULL,four VARCHAR(255) NOT NULL,five VARCHAR(255) NOT NULL,six VARCHAR(255) NOT NULL,seven VARCHAR(255) NOT NULL,eight VARCHAR(255) NOT NULL,nine VARCHAR(255) NOT NULL,ten VARCHAR(255) NOT NULL,eleven VARCHAR(255) NOT NULL,twelve VARCHAR(255) NOT NULL,thirteen VARCHAR(255) NOT NULL,fourteen VARCHAR(255) NOT NULL,fifteen VARCHAR(255) NOT NULL,sixteen VARCHAR(255) NOT NULL,seventeen VARCHAR(255) NOT NULL,eighteen VARCHAR(255) NOT NULL,nineteen VARCHAR(255) NOT NULL)");
+    #cursor.execute("create table if not exists users(rollno varchar(50) primary key,password varchar(15),email varchar(60))")
+    #cursor.execute("CREATE TABLE contact (name varchar(255) NOT NULL,email varchar(255) NOT NULL,message varchar(255) NOT NULL)");
+    #cursor.execute("CREATE TABLE sur_data (name VARCHAR(255) NOT NULL,rollno VARCHAR(255) NOT NULL,email VARCHAR(255) NOT NULL,dept VARCHAR(255) NOT NULL,specialization VARCHAR(255) NOT NULL,one VARCHAR(255) NOT NULL,two VARCHAR(255) NOT NULL,three VARCHAR(255) NOT NULL,four VARCHAR(255) NOT NULL,five VARCHAR(255) NOT NULL,six VARCHAR(255) NOT NULL,seven VARCHAR(255) NOT NULL,eight VARCHAR(255) NOT NULL,nine VARCHAR(255) NOT NULL,ten VARCHAR(255) NOT NULL,eleven VARCHAR(255) NOT NULL,twelve VARCHAR(255) NOT NULL,thirteen VARCHAR(255) NOT NULL,fourteen VARCHAR(255) NOT NULL,fifteen VARCHAR(255) NOT NULL,sixteen VARCHAR(255) NOT NULL,seventeen VARCHAR(255) NOT NULL,eighteen VARCHAR(255) NOT NULL,nineteen VARCHAR(255) NOT NULL)");
     cursor.close()
-mydb=mysql.connector.connect(host="Satwika",user="system",password="root",db="spm")
+mydb=mysql.connector.connect(host="185.232.14.154",user="u819702430_Admin",password="Root123@.",db="u819702430_spm")
 serializer = URLSafeTimedSerializer(b'\x011\xd3\xb9\x1a\x97{\xe6\x87\xeb{2\xbe*\xcfI\xde\x02\xe7\x89')
+db_config = {
+    "host": "185.232.14.154",
+    "user": "u819702430_Admin",
+    "password": "Root123@.",
+    "database": "u819702430_spm",
+}
 
+# Attempt to establish a database connection
+try:
+    # Create a database connection
+    db_connection = mysql.connector.connect(**db_config)
+
+    # Check if the connection was successful
+    if db_connection.is_connected():
+        logging.info("Database connection established successfully!")
+
+except mysql.connector.Error as e:
+    # Handle the error if the connection fails
+    logging.error(f"Error connecting to the database: {e}")
+
+# Close the database connection when you're done
+if 'db_connection' in locals():
+    db_connection.close()
+try:
+    # Create a database connection
+    db_connection = mysql.connector.connect(**db_config)
+
+    # Check if the connection was successful
+    if db_connection.is_connected():
+        print("Database connection established successfully!")
+
+except mysql.connector.Error as e:
+    # Handle the error if the connection fails
+    print(f"Error connecting to the database: {e}")
+if mydb.is_connected():
+    cursor = mydb.cursor(buffered=True)
+else:
+    flash('Database connection lost')
+
+# Close the database connection when you're done
+if 'db_connection' in locals():
+    db_connection.close()
 @app.route('/')
 def index():
     return render_template('index.html')
+
 @app.route('/home',methods=['GET','POST'])
 def home():
     return render_template('home.html')
@@ -77,19 +118,125 @@ def send_confirmation_email(email, body):
 
         # Send the email
         server.send_message(msg)
-        print("Email sent successfully!")
+        logging.info("Email sent successfully!")
         
     except Exception as e:
-        print(f"Error sending email: {e}")
+        logging.error(f"Error sending email: {e}")
         raise  # Re-raise the exception to handle it in your main function
     
     finally:
+        # Ensure the SMTP connection is closed
+        try:
+            if server:
+                server.quit()
+                logging.info("SMTP connection closed.")
+        except NameError:
+            logging.warning("Server object was not created.")
+        except Exception as e:
+            logging.error(f"Error closing SMTP connection: {e}")
+
         server.quit()
 
+from mysql.connector import pooling, Error
 
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 
+# Database connection pool
+db_config = {
+    "host": "185.232.14.154",
+    "user": "u819702430_Admin",
+    "password": "Root123@.",
+    "database": "u819702430_spm",
+}
+connection_pool = pooling.MySQLConnectionPool(pool_name="mypool", pool_size=5, **db_config)
+
+# Environment variable for email password
+EMAIL_PASSWORD = os.getenv('mrlq kqqg umdy nunb')  # Set this in your environment
+
+def get_db_connection():
+    """Retrieve a database connection from the pool."""
+    try:
+        return connection_pool.get_connection()
+    except Error as e:
+        print(f"Error getting connection from pool: {e}")
+        flash("Database connection error")
+        return None
+
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        rollno = request.form['rollno']
+        password = request.form['password']
+        email = request.form['email']
+        cursor = None
+
+        try:
+            # Check database connection
+            if not mydb.is_connected():  # Check if the connection is active
+                mydb.reconnect()  # Reconnect if the connection is lost
+            
+            cursor = mydb.cursor(buffered=True)
+            
+            # Check if rollno already exists
+            cursor.execute('SELECT COUNT(*) FROM users WHERE rollno=%s', [rollno])
+            count = cursor.fetchone()[0]
+            
+            # Check if email already exists
+            cursor.execute('SELECT COUNT(*) FROM users WHERE email=%s', [email])
+            count1 = cursor.fetchone()[0]
+
+        except mysql.connector.Error as e:
+            # Log database connection error
+            app.logger.error(f"Database error: {e}")
+            flash('Database connection error')
+            return render_template('register.html')
+        
+        finally:
+            if cursor:  # Only close the cursor if it was initialized
+                cursor.close()
+
+        # Check for duplicate rollno or email
+        if count == 1:
+            flash('Username already in use')
+            return render_template('register.html')
+        elif count1 == 1:
+            flash('Email already in use')
+            return render_template('register.html')
+
+        # Generate token for email verification
+        data = {'rollno': rollno, 'password': password, 'email': email}
+        token_url = url_for(
+            'confirm',
+            token=token(data, salt='f4db28e23409f84183ba442b7d607d6d'),
+            _external=True
+        )
+
+        # Email setup
+        subject = 'Email Confirmation'
+        body = f"Thanks for signing up\n\nFollow this link to complete registration: {token_url}"
+
+        try:
+            with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+                server.login("satwikapoluri@gmail.com", "mrlq kqqg umdy nunb")  # Use app-specific password
+                msg = MIMEMultipart()
+                msg['From'] = "satwikapoluri@gmail.com"
+                msg['To'] = email
+                msg['Subject'] = subject
+                msg.attach(MIMEText(body, 'plain'))
+                server.sendmail("satwikapoluri@gmail.com", email, msg.as_string())
+        
+        except Exception as e:
+            flash('Error sending confirmation email')
+            app.logger.error(f"Error sending email: {e}")  # Log error for debugging
+            return render_template('register.html')
+        
+        flash('Confirmation link sent to your email')
+        return redirect(url_for('login'))
+    
+    return render_template('register.html')
+
+
+'''
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -135,118 +282,25 @@ def register():
     
     return render_template('register.html')
 
+'''
 
 
-@app.route('/confirm/<token>')
-def confirm(token):
-    try:
-        serializer=URLSafeTimedSerializer(secret_key)
-        data=serializer.loads(token,salt='f4db28e23409f84183ba442b7d607d6d',max_age=86400)
-    except Exception as e:
-        #print(e)
-        return 'Link Expired register again'
-    else:
-        cursor=mydb.cursor(buffered=True)
-        rollno=data['rollno']
-        cursor.execute('select count(*) from users where rollno=%s',[rollno])
-        count=cursor.fetchone()[0]
-        if count==1:
-            cursor.close()
-            flash('You are already registerterd!')
-            return redirect(url_for('login'))
-        else:
-            cursor.execute('insert into users values(%s,%s,%s)',[data['rollno'],data['password'],data['email']])
-            mydb.commit()
-            cursor.close()
-            flash('Details registered!')
-            return redirect(url_for('login'))
         
-@app.route('/dashboard')
-def dashboard():
-    if session.get('user'):
-        return render_template('dashboard.html')
-    else:
-        return redirect(url_for('login'))
-
-@app.route('/aboutus')
-def aboutus():
-    return render_template('aboutus.html')    
-
-@app.route('/contactus', methods=['GET', 'POST'])
-def contactus():
-    if request.method == 'POST':
-        name = request.form['name']
-        email = request.form['email']
-        message = request.form['message']
-        
-        cursor = mydb.cursor(buffered=True)
-        cursor.execute('INSERT INTO contact (name, email, message) VALUES (%s, %s, %s)', (name, email, message))
-        mydb.commit()  # Commit the transaction to save the data
-        
-        cursor.close()
-        
-        return redirect(url_for('index'))
-    return render_template('contactus.html')
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if session.get('user'):
-        return redirect(url_for('dashboard'))  # Redirect to the dashboard if already logged in
-    
-    if request.method == 'POST':
-        rollno = request.form['rollno']
-        password = request.form['password']
-        cursor = mydb.cursor(buffered=True)
-        cursor.execute('SELECT count(*) from users where rollno=%s and password=%s', [rollno, password])
-        count = cursor.fetchone()[0]
-        cursor.close()
-        
-        if count == 1:
-            session['user'] = rollno
-            flash('Login successful')
-            return redirect(url_for('dashboard'))  # Redirect to the dashboard or home page
-        else:
-            flash('Invalid username or password')
-    
-    return render_template('login.html')
-
-@app.route('/logout')
-
-def logout():
-    if session.get('user'):
-        session.pop('user')
-        flash('Successfully logged out')
-        return redirect(url_for('login'))
-    else:
-        return redirect(url_for('login'))
-    
-@app.route('/reset/<token>', methods=['GET', 'POST'])
-def reset(token):
-    try:
-        # Initialize the serializer with the secret key
-        serializer = URLSafeTimedSerializer(secret_key)
-
-        # Validate and deserialize the token
-        email = serializer.loads(token, salt='f4db28e23409f84183ba442b7d607d6d', max_age=86400)
-        print("Token is valid. Email associated:", email)
-
-    except Exception as e:
-        print(f"Error validating token: {e}")
-        flash('The reset link is invalid or has expired.')
-        return redirect(url_for('forget'))
-
+@app.route('/reset/<email>', methods=['GET', 'POST'])
+def reset(email):
     if request.method == 'POST':
         newpassword = request.form['npassword']
         confirmpassword = request.form['cpassword']
 
-        # Debugging information
+        '''# Debugging information
         print("Email:", email)
         print("New Password:", newpassword)
-        print("Confirm Password:", confirmpassword)
+        print("Confirm Password:", confirmpassword)'''
 
         # Password validation
         if newpassword == confirmpassword:
             try:
+                # Initialize the cursor
                 cursor = mydb.cursor(buffered=True)
 
                 # Update the password for the user associated with the email
@@ -254,7 +308,7 @@ def reset(token):
 
                 # Check if any rows were affected (updated)
                 row_count = cursor.rowcount
-                print("Row Count:", row_count)
+                logging.info("Row Count:", row_count)
                 mydb.commit()
 
                 if row_count > 0:
@@ -265,12 +319,13 @@ def reset(token):
                     return render_template('newpassword.html')
 
             except Exception as e:
-                print(f"Error updating password: {e}")
+                logging.error(f"Error updating password: {e}")
                 flash('An error occurred while updating the password. Please try again.')
                 return render_template('newpassword.html')
 
             finally:
-                cursor.close()
+                if 'cursor' in locals():  # Check if cursor was initialized
+                    cursor.close()
 
         else:
             flash('Passwords do not match. Please try again.')
@@ -283,96 +338,286 @@ def reset(token):
 def forget():
     if request.method == 'POST':
         email = request.form['email']
-        cursor = mydb.cursor(buffered=True)
+        
+        # Check if the email is valid (you can add more validation here)
+        if not email or '@' not in email:
+            flash('Please enter a valid email address.', 'error')
+            return render_template('forgot.html')
+
+        # Check if the database connection is available
+        if not mydb.is_connected():
+            try:
+                # Reconnect if connection is lost
+                mydb.reconnect(attempts=3, delay=5)
+            except mysql.connector.errors.OperationalError as e:
+                flash('Database connection is not available. Please try again later.', 'error')
+                return render_template('forgot.html')
         
         try:
-            # Check if the email exists
+            cursor = mydb.cursor(buffered=True)
+            
+            # Check if the email exists in the database
             cursor.execute('SELECT count(*) FROM users WHERE email = %s', [email])
             count = cursor.fetchone()[0]
-            
+
             if count == 1:
                 # Fetch the email from the database
                 cursor.execute('SELECT email FROM users WHERE email = %s', [email])
                 email_result = cursor.fetchone()[0]
-                
-                # Generate the reset link
+
+                # Generate the reset link with email instead of token
                 subject = 'Forget Password'
-                # Make sure `token` function is correctly implemented
-                reset_token = token(email_result, salt='f4db28e23409f84183ba442b7d607d6d')
-                confirm_link = url_for('reset', token=reset_token, _external=True)
-                body = f"Use this link to reset your password:\n\n{confirm_link}"
-                
-                # Send the email (assuming `sendmail` is defined correctly)
+                reset_link = url_for('reset', email=email_result, _external=True)
+                body = f"Use this link to reset your password:\n\n{reset_link}"
+
+                # Send the email (ensure sendmail is defined properly)
                 sendmail(to=email_result, body=body, subject=subject)
-                flash('Reset link sent, check your email')
+                flash('Reset link sent, check your email', 'success')
                 return redirect(url_for('login'))
             else:
-                flash('Invalid email id')
+                flash('Invalid email id', 'error')
                 return render_template('forgot.html')
 
         except Exception as e:
-            # Log the exception (you can print or log it properly)
-            print(f"Error occurred: {e}")
-            flash('An error occurred while processing your request.')
+            logging.error(f"Error occurred: {e}")  # You can replace this with logging
+            flash('An error occurred while processing your request. Please try again.', 'error')
             return render_template('forgot.html')
 
         finally:
-            cursor.close()
+            if cursor:
+                cursor.close()
 
     return render_template('forgot.html')
 
 
-@app.route('/survey', methods=['GET','POST'])
-def survey_start():
+
+@app.route('/confirm/<token>')
+def confirm(token):
+    try:
+        # Deserialize the token with a time limit of 24 hours (86400 seconds)
+        serializer = URLSafeTimedSerializer(secret_key)
+        data = serializer.loads(token, salt='f4db28e23409f84183ba442b7d607d6d', max_age=86400)
+    except Exception as e:
+        logging.error(f"Token error: {e}")
+        return 'Link expired. Please register again.', 400
+
+    # Ensure the MySQL connection is active
+    global mydb
+    try:
+        # Check if mydb is None or the connection is not available
+        if mydb is None or not mydb.is_connected():
+            mydb = mysql.connector.connect(
+                host="185.232.14.154",
+                user="u819702430_Admin",
+                password="Root123@.",
+                database="u819702430_spm"
+            )
+        
+        cursor = mydb.cursor(buffered=True)
+        rollno = data['rollno']
+
+        # Check if the user is already registered
+        cursor.execute('SELECT COUNT(*) FROM users WHERE rollno = %s', [rollno])
+        count = cursor.fetchone()[0]
+
+        if count == 1:
+            cursor.close()
+            flash('You are already registered!')
+            return redirect(url_for('login'))
+        
+        # Register the new user
+        cursor.execute(
+            'INSERT INTO users (rollno, password, email) VALUES (%s, %s, %s)',
+            [data['rollno'], data['password'], data['email']]
+        )
+        mydb.commit()
+        cursor.close()
+
+        flash('Details registered successfully!')
+        return redirect(url_for('login'))
+
+    except mysql.connector.Error as e:
+        logging.error(f"Database error: {e}")
+        return "Internal Server Error", 500
+
+    except Exception as e:
+        logging.error(f"Unexpected error: {e}")
+        return "An error occurred. Please try again.", 500
+
+        
+@app.route('/dashboard')
+def dashboard():
+    if session.get('user'):
+        return render_template('dashboard.html')
+    else:
+        return redirect(url_for('login'))
+
+@app.route('/aboutus')
+def aboutus():
+    return render_template('aboutus.html')    
+
+import re
+
+@app.route('/contactus', methods=['GET', 'POST'])
+def contactus():
+    if request.method == 'POST':
+        name = request.form['name']
+        email = request.form['email']
+        message = request.form['message']
+        
+        # Basic form validation
+        if not name or not email or not message:
+            flash('All fields are required.')
+            return render_template('contactus.html')
+
+        # Validate email format
+        email_regex = r"(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)"
+        if not re.match(email_regex, email):
+            flash('Please enter a valid email address.')
+            return render_template('contactus.html')
+
+        try:
+            cursor = mydb.cursor(buffered=True)
+            
+            # Insert the contact message into the database
+            cursor.execute('INSERT INTO contact (name, email, message) VALUES (%s, %s, %s)', (name, email, message))
+            mydb.commit()  # Commit the transaction to save the data
+            
+            flash('Your message has been successfully sent!')
+            
+        except Exception as e:
+            logging.error(f"Error inserting contact message: {e}")
+            flash('There was an issue sending your message. Please try again later.')
+        
+        finally:
+            cursor.close()
+        
+        return redirect(url_for('index'))
+        
+    return render_template('contactus.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if session.get('user'):
+        return redirect(url_for('dashboard'))  # Redirect to the dashboard if already logged in
+
+    # Ensure a valid database connection
+    try:
+        if not mydb.is_connected():
+            mydb.connect()  # Reconnect if not connected
+        cursor = mydb.cursor(buffered=True)
         
         if request.method == 'POST':
-            name = request.form['name']
             rollno = request.form['rollno']
-            email = request.form['email']
-            dept = request.form['dept']
-            specialization = request.form['specialization']
-            one = request.form['one']
-            two = request.form['two']
-            three = request.form['three']
-            four = request.form['four']
-            five = request.form['five']
-            six = request.form['six']
-            seven = request.form['seven']
-            eight = request.form['eight']
-            nine = request.form['nine']
-            ten = request.form['ten']
-            eleven = request.form['eleven']
-            twelve = request.form['twelve']
-            thirteen = request.form['thirteen']
-            fourteen = request.form['fourteen']
-            fifteen = request.form['fifteen']
-            sixteen = request.form['sixteen']
-            seventeen = request.form['seventeen']
-            eighteen = request.form['eighteen']
-            nineteen = request.form['nineteen']        
-            
-            cursor = mydb.cursor(buffered=True)
-            cursor.execute('INSERT INTO sur_data VALUES ( %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)', [name, rollno, email, dept, specialization, one, two, three, four, five, six, seven, eight, nine, ten, eleven, twelve, thirteen, fourteen, fifteen, sixteen, seventeen, eighteen, nineteen])
-            mydb.commit()
+            password = request.form['password']
 
-            flash('Survey submitted successfully', 'success')
-            return redirect(url_for('thank_you'))  # Redirect to thank-you page
-        return render_template("survey.html")
+            # Query the database for the user
+            cursor.execute('SELECT count(*) from users where rollno=%s and password=%s', [rollno, password])
+            count = cursor.fetchone()[0]
 
+            if count == 1:
+                session['user'] = rollno
+                flash('Login successful')
+                return redirect(url_for('dashboard'))  # Redirect to the dashboard or home page
+            else:
+                flash('Invalid username or password')
+
+    except mysql.connector.Error as err:
+        flash(f"Error: {err}")
+    finally:
+        # Ensure the cursor is closed after the query
+        cursor.close()
+    
+    return render_template('login.html')
+
+
+@app.route('/logout')
+
+def logout():
+    if session.get('user'):
+        session.pop('user')
+        flash('Successfully logged out')
+        return redirect(url_for('login'))
+    else:
+        return redirect(url_for('login'))
+    
+
+
+
+
+@app.route('/survey', methods=['GET', 'POST'])
+def survey_start():
+    if request.method == 'POST':
+        name = request.form['name']
+        rollno = request.form['rollno']
+        email = request.form['email']
+        dept = request.form['dept']
+        specialization = request.form['specialization']
+        one = request.form['one']
+        two = request.form['two']
+        three = request.form['three']
+        four = request.form['four']
+        five = request.form['five']
+        six = request.form['six']
+        seven = request.form['seven']
+        eight = request.form['eight']
+        nine = request.form['nine']
+        ten = request.form['ten']
+        eleven = request.form['eleven']
+        twelve = request.form['twelve']
+        thirteen = request.form['thirteen']
+        fourteen = request.form['fourteen']
+        fifteen = request.form['fifteen']
+        sixteen = request.form['sixteen']
+        seventeen = request.form['seventeen']
+        eighteen = request.form['eighteen']
+        nineteen = request.form['nineteen']
+
+        try:
+            # Use context manager to manage database connection and cursor
+            with get_db_connection() as db_connection:
+                if db_connection:
+                    cursor = db_connection.cursor(buffered=True)
+                    try:
+                        cursor.execute(
+                            'INSERT INTO sur_data (name, rollno, email, dept, specialization, one, two, three, four, five, six, seven, eight, nine, ten, eleven, twelve, thirteen, fourteen, fifteen, sixteen, seventeen, eighteen, nineteen) '
+                            'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
+                            (name, rollno, email, dept, specialization, one, two, three, four, five, six, seven, eight, nine, ten, eleven, twelve, thirteen, fourteen, fifteen, sixteen, seventeen, eighteen, nineteen)
+                        )
+                        db_connection.commit()
+                        flash('Survey submitted successfully', 'success')
+                        return redirect(url_for('thank_you'))  # Redirect to thank-you page
+                    except Exception as e:
+                        logging.error(f"Error during insert: {e}")
+                        flash('An error occurred while submitting the survey.', 'error')
+                    finally:
+                        cursor.close()  # Always close the cursor after use
+                else:
+                    flash('Database connection is lost. Please try again later.', 'error')
+        except Exception as e:
+            logging.error(f"Error while connecting to database: {e}")
+            flash('An error occurred while connecting to the database.', 'error')
+
+    return render_template("survey.html")
 def fetch_survey_data():
+    cursor = None  # Initialize cursor to None to ensure it's always defined
     try:
-        cursor = mydb.cursor(dictionary=True)  # This cursor returns rows as dictionaries
-        cursor.execute('SELECT * FROM sur_data')  # Replace with your actual SQL query
-
-        # Fetch all rows of survey data
-        survey_data = cursor.fetchall()
-
-        return survey_data
+        # Use context manager to manage the connection
+        with get_db_connection() as db_connection:
+            if db_connection:
+                cursor = db_connection.cursor(dictionary=True)
+                cursor.execute('SELECT * FROM sur_data')  # Replace with your actual SQL query
+                survey_data = cursor.fetchall()
+                return survey_data
+            else:
+                logging.info("Database connection is not available.")
+                return None
     except Exception as e:
-        print(f"Error fetching survey data: {e}")
+        logging.error(f"Error fetching survey data: {e}")
         return None
     finally:
-        cursor.close()
+        if cursor:
+            cursor.close()  # Always close the cursor if it was created
 
 @app.route('/download_survey_data', methods=['GET'])
 def download_survey_data():
@@ -404,6 +649,29 @@ def download_survey_data():
 def thank_you():
     return render_template('thank_you.html')
 
-  
+# main.py
+from db import get_db_connection
+
+with get_db_connection() as connection:
+    cursor = connection.cursor(buffered=True)
+    
+    # Query for 'users' table
+    cursor.execute("SELECT * FROM users")
+    users = cursor.fetchall()
+    for user in users:
+        print(user)
+    
+    # Query for 'orders' table
+    cursor.execute("SELECT * FROM sur_data")
+    orders = cursor.fetchall()
+    for order in orders:
+        print(order)
+    
+    # Query for 'products' table
+    cursor.execute("SELECT * FROM contact")
+    products = cursor.fetchall()
+    for product in products:
+        print(product)
+
 if __name__=='__main__':
     app.run()

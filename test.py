@@ -5,10 +5,10 @@ app = Flask(__name__)
 
 # Database configuration
 db_config = {
-    "host": "Satwika",
-    "user": "system",
-    "password": "root",
-    "database": "spm",
+    "host": "185.232.14.154",
+    "user": "u819702430_Admin",
+    "password": "Root123@.",
+    "database": "u819702430_spm",
 }
 
 # Attempt to establish a database connection
