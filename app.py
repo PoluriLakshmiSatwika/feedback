@@ -7,7 +7,6 @@ from stoken import token
 from cmail import sendmail
 import os
 import smtplib
-import pandas as pd
 from flask import Flask, render_template
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
